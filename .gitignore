@@ -3,6 +3,7 @@ artifacts/
 cache/
 coverage/
 build/
+target/
 dist/
 .env
 .env.*
@@ -12,3 +13,5 @@ dist/
 *.p12
 *.pfx
 *.key
+__pycache__/
+*.pyc

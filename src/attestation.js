@@ -2,8 +2,20 @@ const { getAddress } = require("ethers");
 
 const mintTypes = {
   Mint: [
-    { name: "cateTxId", type: "bytes32" },
-    { name: "outputIndex", type: "uint32" },
+    { name: "sourceTxHash", type: "bytes32" },
+    { name: "logIndex", type: "uint32" },
+    { name: "recipient", type: "address" },
+    { name: "amount", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+    { name: "committeeEpoch", type: "uint256" },
+  ],
+};
+
+const releaseTypes = {
+  Release: [
+    { name: "ethTxHash", type: "bytes32" },
+    { name: "logIndex", type: "uint32" },
+    { name: "withdrawalId", type: "uint256" },
     { name: "recipient", type: "address" },
     { name: "amount", type: "uint256" },
     { name: "deadline", type: "uint256" },
@@ -20,8 +32,17 @@ function mintDomain(chainId, verifyingContract) {
   };
 }
 
+function releaseDomain(chainId, verifyingContract) {
+  return { name: "SmartCatecash Escrow", version: "1", chainId,
+    verifyingContract: getAddress(verifyingContract) };
+}
+
 async function signMint(signer, domain, mint) {
   return { signer: await signer.getAddress(), signature: await signer.signTypedData(domain, mintTypes, mint) };
+}
+
+async function signRelease(signer, domain, release) {
+  return { signer: await signer.getAddress(), signature: await signer.signTypedData(domain, releaseTypes, release) };
 }
 
 function orderedSignatures(attestations) {
@@ -36,4 +57,4 @@ function orderedSignatures(attestations) {
   return sorted.map(({ signature }) => signature);
 }
 
-module.exports = { mintTypes, mintDomain, signMint, orderedSignatures };
+module.exports = { mintTypes, mintDomain, signMint, releaseTypes, releaseDomain, signRelease, orderedSignatures };

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { verifyDeposit } = require("../src/deposit-policy");
+const { verifyPowDeposit } = require("../src/deposit-policy");
 
 const genesis = "0x" + "ab".repeat(32);
 const txId = "0x" + "cd".repeat(32);
@@ -24,7 +24,7 @@ describe("Catecash deposit signer policy", function () {
 
   it("accepts a canonical sufficiently confirmed output to a one-time escrow address", async function () {
     const f = fixture();
-    assert.deepEqual(await verifyDeposit(f), {
+    assert.deepEqual(await verifyPowDeposit(f), {
       cateTxId: txId, outputIndex: 1, recipient: f.intent.recipient, amount: 50_000_000n,
     });
   });
@@ -32,18 +32,18 @@ describe("Catecash deposit signer policy", function () {
   it("rejects wrong chain, shallow confirmations, reorganizations, and wrong outputs", async function () {
     const f = fixture();
     f.chain.getGenesisHash = async () => "0x" + "11".repeat(32);
-    await assert.rejects(verifyDeposit(f), /wrong Catecash network/);
+    await assert.rejects(verifyPowDeposit(f), /wrong Catecash network/);
     f.chain.getGenesisHash = async () => genesis;
     f.chain.getTipHeight = async () => 105;
-    await assert.rejects(verifyDeposit(f), /insufficient confirmations/);
+    await assert.rejects(verifyPowDeposit(f), /insufficient confirmations/);
     f.chain.getTipHeight = async () => 120;
     f.chain.getBlockHash = async () => "0x" + "11".repeat(32);
-    await assert.rejects(verifyDeposit(f), /reorganized/);
+    await assert.rejects(verifyPowDeposit(f), /reorganized/);
     f.chain.getBlockHash = async () => blockHash;
     f.observation.outputIndex = 0;
-    await assert.rejects(verifyDeposit(f), /does not match intent/);
+    await assert.rejects(verifyPowDeposit(f), /does not match intent/);
     f.observation.outputIndex = 1;
     f.intent.used = true;
-    await assert.rejects(verifyDeposit(f), /consumed deposit intent/);
+    await assert.rejects(verifyPowDeposit(f), /consumed deposit intent/);
   });
 });

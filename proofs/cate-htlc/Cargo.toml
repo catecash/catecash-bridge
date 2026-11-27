@@ -1,0 +1,20 @@
+[package]
+name = "cate-htlc-proof"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+zebra-chain = { path = "../../../catecash-zebra/zebra-chain", features = ["proptest-impl"] }
+zebra-script = { path = "../../../catecash-zebra/zebra-script" }
+secp256k1 = "0.33"
+sha2 = "0.10"
+ripemd = "0.1"
+hex = "0.4"
+serde_json = "1"
+
+[patch.crates-io]
+zcash_address = { path = "../../../catecash-zebra/vendor/zcash_address" }
+zcash_protocol = { path = "../../../catecash-zebra/vendor/zcash_protocol" }
+zcash_primitives = { path = "../../../catecash-zebra/vendor/zcash_primitives" }
+zcash_transparent = { path = "../../../catecash-zebra/vendor/zcash_transparent" }

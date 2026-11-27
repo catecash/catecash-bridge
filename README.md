@@ -1,19 +1,27 @@
-# Catecash Bridge
+# Catecash bridge prototype
 
-Testnet prototype for locking native Catecash (CATE) and issuing redeemable wrapped CATE (wCATE) on Ethereum. **No public Catecash network or redeemable mainnet wCATE exists yet. Do not deploy this prototype with real funds.**
+**Current direction:** [Native CATE ↔ Solana USDC system design](docs/solana-swap-system-design.md). It specifies the on-chain order book, server roles, Chrome wallet flow, and external Catecash swap client, with no wrapped CATE mint or Zebra node changes. This is a design, not a deployed service.
 
-## Current scope
+The agreed [six implementation steps and current progress](docs/solana-swap-implementation-steps.md) are tracked separately. Step 1 has an external, offline CATE HTLC script proof; the live devnet round trip is still open.
 
-- `docs/bridge-spec.md` defines the deposit, mint, burn, payout, custody, and recovery rules.
-- `contracts/WrappedCATE.sol` is an 8-decimal ERC-20 with committee-authorized minting, one-time deposit IDs, a supply cap, burn-to-withdraw events, and an owner pause.
-- `src/deposit-policy.js` checks a proposed deposit against an independent Catecash chain adapter before a signer attests to it. The adapter is mocked in tests; a production Catecash RPC implementation is pending.
-- Tests exercise mint replay protection, committee signatures, caps, burns, pauses, chain identity, confirmations, and reorganizations.
+**Design decision (2026-11-26): The committee-minted wCATE route is rejected for public liquidity pools.** A signer threshold can authorize an unbacked mint, and the owner can raise the cap. Such tokens could be sold into a pool for its ETH, WETH, or WBNB. The Ethereum token and SmartCatecash escrow constructors now run only on Hardhat's local chain ID 31337. This code is retained for local threat-model tests, not deployment. See [bridge redesign](docs/bridge-redesign.md).
 
-The ERC-20 contract **does not hold or release native CATE**. The Catecash custody wallet and payout service remain to be built after the chain's wallet and RPC interfaces are finalized. The prototype does not provide a usable bridge UI or a live route.
+The previous route was **Catecash PoW → SmartCatecash native CATE → SmartCatecash wCAT → Ethereum wCATE**. It remains in this repository only as an isolated local prototype. No public route or redeemable mainnet wCATE exists.
 
-## Local development
+## What this repo implements
 
-Use a supported Node.js LTS release (Node 22 or 24), then:
+- [`src/deposit-policy.js`](src/deposit-policy.js) verifies a proposed transparent Catecash PoW deposit against an independent chain adapter. It does not yet issue native SmartCatecash CATE.
+- [`contracts/WrappedSmartCATE.sol`](contracts/WrappedSmartCATE.sol) wraps native SmartCatecash CATE into 8-decimal wCAT and unwraps it back to native CATE in exact PoW atom units.
+- [`contracts/SmartCATEEscrow.sol`](contracts/SmartCATEEscrow.sol) locks SmartCatecash wCAT and releases it after committee attestation of a finalized Ethereum burn.
+- [`contracts/WrappedCATE.sol`](contracts/WrappedCATE.sol) mints Ethereum wCATE only for a committee-attested SmartCatecash lock event. Its withdrawal burns wCATE to request release **on SmartCatecash**, not directly on the PoW chain.
+- [`src/evm-policy.js`](src/evm-policy.js) checks chain identity, confirmations, canonical transaction receipts, exact bridge address, and event values before a test signer attests to either EVM hop.
+- [`docs/bridge-spec.md`](docs/bridge-spec.md) defines both hops, their custody model, accounting, and unfinished production work. The [SmartCatecash launch plan](docs/smartcatecash-launch-plan.md) covers the proposed EVM L1 and later BNB Smart Chain and Robinhood Chain routes.
+
+Both contracts use threshold EIP-712 attestations, source-bound identifiers, replay protection, owner pause, and committee epochs. These controls do **not** make the prototype trustless: a compromised signer threshold can issue an unbacked claim or release escrow improperly. The contracts and operations need independent review.
+
+## Local checks
+
+Use Node 22 or 24 LTS:
 
 ```sh
 npm ci
@@ -21,24 +29,17 @@ npm run compile
 npm test
 ```
 
-No key or RPC URL is needed for local tests. The test suite uses a local Ethereum chain and mocked Catecash responses.
+The tests run on one local Hardhat chain with mocked cross-chain observations. They prove wrapper, escrow, token, and policy behavior at that boundary; they do not prove a live cross-chain bridge. No key or RPC URL is needed.
 
-For a Sepolia deployment, set `ETH_RPC_URL` and either `DEPLOYER_PRIVATE_KEY`
-or `BRIDGE_WALLET_REF` (a local JSON file naming a restricted seed file and
-derivation path). Set `CATE_GENESIS`, `BRIDGE_OWNER`, `BRIDGE_SIGNERS`
-(comma-separated addresses), `BRIDGE_THRESHOLD`, and `BRIDGE_CAP_ATOMS`
-(integer base units). Alternatively, set `BRIDGE_DEPLOY_CONFIG` to a local JSON
-file with `genesis`, `owner`, `signers`, `threshold`, and `capAtoms`. Then run
-`npx hardhat run scripts/deploy.js --network sepolia`. The script refuses any
-chain other than Sepolia (11155111) and verifies the deployed parameters. Use
-a Catecash **testnet** genesis and test-only keys. It does not create Catecash
-custody or a payout service.
+## Deployment status
 
-## Implementation milestones
+The prior Sepolia deployment workflow is disabled because it implements the rejected committee-mint design. Do not deploy a liquidity pool or issue a public wCATE token from this code. A replacement design must prove that no operator or signer set can create unbacked pool-facing CATE before a deployment workflow is restored.
 
-1. Finalize the public Catecash network, address encodings, transparent multisignature custody capability, and indexed transaction/wallet RPCs.
-2. Implement a persistent one-time deposit intent service and a Catecash RPC adapter; independently run the policy on each signer.
-3. Implement an Ethereum finalized-log watcher and durable, idempotent native withdrawal executor. Test chain reorganizations and crash recovery end to end.
-4. Deploy on public testnets with independent operators, reconcile reserves continuously, and commission an independent security review before any mainnet deployment.
+## Missing for a usable route
 
-This repo is MIT licensed. See `docs/bridge-spec.md` for the trust model and unresolved parameters.
+1. Decide whether SmartCatecash needs native gas CATE at all. An operator-controlled EVM chain plus a committee bridge does not provide the security needed for public CATE liquidity pools.
+2. Implement persistent single-use PoW deposit intents, real Zebra RPC verification, custody signing, withdrawal ledger, reorg handling, and exact reserve accounting.
+3. Run independent SmartCatecash and Ethereum observers/signers, finality watchers, transaction relayers, continuous reserve monitoring, and restart recovery.
+4. Complete public testnet round trips, independent security review, and the source-chain launch gates before considering mainnet deployment.
+
+The repository is MIT licensed. Keep live secrets in restricted host storage or read-only mounts outside build contexts.

@@ -2,7 +2,7 @@
   "name": "catecash-bridge",
   "version": "0.1.0",
   "private": true,
-  "description": "Testnet prototype for a native CATE to Ethereum wCATE bridge",
+  "description": "Testnet prototype for Catecash PoW to SmartCatecash to Ethereum CATE bridges",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test"
